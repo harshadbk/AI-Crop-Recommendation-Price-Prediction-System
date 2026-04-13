@@ -1,5 +1,5 @@
 import React from 'react'
-import { Leaf, LogIn, LogOut, MessageCircle, History, UserPlus } from 'lucide-react'
+import { Leaf, LogIn, LogOut, MessageCircle, History, UserPlus, TrendingUp } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { Footer } from './Footer.jsx'
@@ -38,6 +38,12 @@ export function Layout({ children }) {
               </span>
               Chatbot
             </Link>
+            <Link className={`nav-link ${location.pathname === '/market-prediction' ? 'active' : ''}`} to="/market-prediction">
+              <span className="nav-ic" aria-hidden="true">
+                <TrendingUp size={16} />
+              </span>
+              Market Prediction
+            </Link>
             <Link className={`nav-link ${location.pathname === '/history' ? 'active' : ''}`} to="/history">
               <span className="nav-ic" aria-hidden="true">
                 <History size={16} />
@@ -57,7 +63,11 @@ export function Layout({ children }) {
                     : location.pathname === '/chat'
                       ? 'Chatbot'
                       : location.pathname === '/history'
-                        ? 'History'
+                      ? 'History'
+                    : location.pathname === '/market-prediction'
+                      ? 'Market Input'
+                    : location.pathname === '/market-result'
+                      ? 'Market Data'
                     : 'Farmer Input'}
             </div>
 

@@ -1,99 +1,124 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
-
-const USERS_KEY = 'cropAi:users'
-const SESSION_KEY = 'cropAi:session'
-
-function safeJsonParse(raw, fallback) {
-  try {
-    return raw ? JSON.parse(raw) : fallback
-  } catch {
-    return fallback
-  }
-}
-
-function readUsers() {
-  return safeJsonParse(localStorage.getItem(USERS_KEY), {})
-}
-
-function writeUsers(users) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users))
-}
-
-function readSession() {
-  return safeJsonParse(localStorage.getItem(SESSION_KEY), null)
-}
-
-function writeSession(session) {
-  if (!session) localStorage.removeItem(SESSION_KEY)
-  else localStorage.setItem(SESSION_KEY, JSON.stringify(session))
-}
-
-function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase()
-}
+import { supabase } from './supabaseClient'
 
 const AuthContext = createContext(null)
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => readSession()?.user || null)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    function onStorage(e) {
-      if (e.key === SESSION_KEY) setUser(readSession()?.user || null)
-    }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
+    // We still use supabase client for session management on the frontend
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        fetchProfile(session.user)
+      } else {
+        setLoading(false)
+      }
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        fetchProfile(session.user)
+      } else {
+        setUser(null)
+        setLoading(false)
+      }
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
-  async function signup({ name, email, password }) {
-    const cleanName = String(name || '').trim()
-    const cleanEmail = normalizeEmail(email)
-    const cleanPassword = String(password || '')
+  async function fetchProfile(authUser) {
+    try {
+      // In this setup, we still fetch profile from Supabase directly for speed,
+      // but we could also create a backend endpoint for this.
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single()
 
-    if (!cleanName) throw new Error('Please enter your name.')
-    if (!cleanEmail) throw new Error('Please enter your email.')
-    if (cleanPassword.length < 6) throw new Error('Password must be at least 6 characters.')
+      if (error) throw error
 
-    const users = readUsers()
-    if (users[cleanEmail]) throw new Error('Account already exists. Please login.')
+      setUser({
+        id: authUser.id,
+        email: authUser.email,
+        name: data.full_name,
+        stateName: data.state_name,
+        districtName: data.district_name,
+      })
+    } catch (err) {
+      setUser({
+        id: authUser.id,
+        email: authUser.email,
+        name: authUser.user_metadata?.full_name || 'User',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
-    users[cleanEmail] = { name: cleanName, email: cleanEmail, password: cleanPassword }
-    writeUsers(users)
+  async function signup({ name, email, password, stateName, districtName }) {
+    // Calling our NEW Python Backend Signup Route
+    const response = await fetch(`${BACKEND_URL}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        state_name: stateName,
+        district_name: districtName
+      })
+    })
 
-    const session = { user: { name: cleanName, email: cleanEmail }, createdAt: new Date().toISOString() }
-    writeSession(session)
-    setUser(session.user)
+    const result = await response.json()
+    if (!response.ok) throw new Error(result.detail || 'Signup failed')
 
-    return session.user
+    // After backend signup, we sign in on the frontend to establish session
+    await login({ email, password })
+    return result.user
   }
 
   async function login({ email, password }) {
-    const cleanEmail = normalizeEmail(email)
-    const cleanPassword = String(password || '')
+    // Calling our NEW Python Backend Login Route
+    const response = await fetch(`${BACKEND_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
 
-    if (!cleanEmail) throw new Error('Please enter your email.')
-    if (!cleanPassword) throw new Error('Please enter your password.')
+    const result = await response.json()
+    if (!response.ok) throw new Error(result.detail || 'Login failed')
 
-    const users = readUsers()
-    const record = users[cleanEmail]
-    if (!record) throw new Error('Account not found. Please sign up first.')
-    if (record.password !== cleanPassword) throw new Error('Incorrect password.')
+    // Sign in locally with supabase to persist session in browser
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    if (authError) throw authError
 
-    const session = { user: { name: record.name, email: cleanEmail }, createdAt: new Date().toISOString() }
-    writeSession(session)
-    setUser(session.user)
-
-    return session.user
+    return result.user
   }
 
-  function logout() {
-    writeSession(null)
+  async function logout() {
+    await supabase.auth.signOut()
     setUser(null)
   }
 
-  const value = useMemo(() => ({ user, isLoggedIn: Boolean(user), login, signup, logout }), [user])
+  const value = useMemo(() => ({ 
+    user, 
+    isLoggedIn: Boolean(user), 
+    loading,
+    login, 
+    signup, 
+    logout 
+  }), [user, loading])
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {
@@ -101,4 +126,3 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
 }
-

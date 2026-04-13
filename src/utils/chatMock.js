@@ -23,7 +23,7 @@ function makeReply(message, packed) {
   const result = packed?.result || null
 
   const location = input?.location || 'your area'
-  const season = input?.season || 'this season'
+  const season = input?.seasonLabel || input?.season || 'this season'
 
   if (m.includes('best crop') || m.includes('which crop') || m.includes('recommend')) {
     const rec = result?.recommendedCrops?.slice?.(0, 2) || []
@@ -134,4 +134,3 @@ export function mockChatRespond({ message }) {
   const packed = lastKnownContext()
   return makeReply(message, packed)
 }
-

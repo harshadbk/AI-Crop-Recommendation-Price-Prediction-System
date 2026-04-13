@@ -1,6 +1,17 @@
 import React, { useMemo } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Leaf, MoveLeft, TrendingUp } from 'lucide-react'
+import { 
+  Leaf, 
+  MoveLeft, 
+  ShieldCheck, 
+  MapPin, 
+  CircleDot,
+  AlertCircle,
+  TrendingUp,
+  Sparkles,
+  BarChart3,
+  LineChart
+} from 'lucide-react'
 import { Card } from '../components/Card.jsx'
 import { RiskBadge } from '../components/RiskBadge.jsx'
 import { TrendChart } from '../components/TrendChart.jsx'
@@ -19,8 +30,9 @@ function readSession() {
 }
 
 function formatINR(value) {
-  if (typeof value !== 'number') return String(value ?? '—')
-  return `₹${Math.round(value).toLocaleString('en-IN')}`
+  const val = Number(value)
+  if (isNaN(val) || value === null || value === undefined) return '—'
+  return `₹${Math.round(val).toLocaleString('en-IN')}`
 }
 
 export function ResultPage() {
@@ -39,7 +51,7 @@ export function ResultPage() {
     const price = result.pricePrediction || {}
     const risk = result.risk?.level || (recommended[0]?.risk ?? 'Medium')
 
-    return { input, result, recommended, desired, bullets, trendSeries, price, risk }
+    return { input: input || {}, result, recommended, desired, bullets, trendSeries, price, risk }
   }, [packed])
 
   const seasonKey = view?.input?.monthName ? seasonKeyFromMonth(view.input.monthName) : null
@@ -47,10 +59,11 @@ export function ResultPage() {
 
   if (!view) {
     return (
-      <Card title="No data found">
-        <p className="muted">Please go back and submit the form again.</p>
-        <div className="actions" style={{ justifyContent: 'flex-start' }}>
-          <button className="btn btn-primary" onClick={() => nav('/')}>
+      <Card title="No Data Found">
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <AlertCircle size={48} style={{ color: '#94a3b8', marginBottom: 16 }} />
+          <p className="muted">Please go back and submit the farm details form again.</p>
+          <button className="btn btn-primary" onClick={() => nav('/')} style={{ marginTop: 20 }}>
             Go to Home
           </button>
         </div>
@@ -58,172 +71,174 @@ export function ResultPage() {
     )
   }
 
+  const isRag = view.result.mode === 'live_rag'
+  const headerMarket = view.input.marketName || view.input.location || 'Your Region'
+  const districtDisplay = view.input.districtName || view.input.location?.split(',')[0] || 'Local'
+
   return (
     <>
-      <div className="actions" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+      {/* Header Actions */}
+      <div className="actions" style={{ justifyContent: 'space-between', marginBottom: 20 }}>
         <Link className="btn btn-ghost" to="/">
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <MoveLeft size={16} /> New Recommendation
+            <MoveLeft size={16} /> New Advisory Request
           </span>
         </Link>
-        <div className="pill">
+        <div className="pill" style={{ background: '#fff', border: '1px solid #e2e8f0' }}>
           {seasonKey ? <img src={seasonIcon} alt="" width="18" height="18" style={{ display: 'block' }} /> : null}
-          <span className="muted">Location:</span>&nbsp;<strong>{view.input.location}</strong>
+          <span className="muted">Season:</span>&nbsp;<strong>{seasonKey?.toUpperCase()}</strong>
         </div>
       </div>
 
       <div className="grid">
-        <Card
-          title="🌾 Crop Suggestion"
-          right={<span className="pill">{view.result.mode === 'mock' ? 'Demo mode' : 'Live mode'}</span>}
-        >
-          <div className="kpi" style={{ marginBottom: 10 }}>
-            <div className="muted" style={{ fontWeight: 700 }}>
-              Recommended Crop for You
-            </div>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {view.recommended.slice(0, 2).map((r) => (
-                <div
-                  key={r.crop}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                    padding: 12,
-                    borderRadius: 14,
-                    border: '1px solid rgba(217,234,223,0.9)',
-                    background: 'rgba(244,251,246,0.6)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 12,
-                        display: 'grid',
-                        placeItems: 'center',
-                        background: 'linear-gradient(135deg, #157f3d, #22c55e)',
-                        color: 'white',
-                      }}
-                    >
-                      <Leaf size={16} />
-                    </span>
-                    <div>
-                      <div style={{ fontWeight: 900, fontSize: 16 }}>{r.crop}</div>
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        Suitability: {r.probability}% • {r.risk} risk
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ width: 140 }}>
-                    <div className="progress" aria-label={`Suitability ${r.probability}%`}>
-                      <div style={{ width: `${r.probability}%` }} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {view.desired ? (
-            <div style={{ marginTop: 14 }}>
-              <div className="muted" style={{ fontWeight: 800, marginBottom: 6 }}>
-                Selected crop probability
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div>
-                  <div style={{ fontWeight: 900 }}>{view.desired.crop}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>
-                    Good fit chance: {view.desired.probability}% • {view.desired.risk} risk
-                  </div>
-                </div>
-                <div style={{ width: 180 }}>
-                  <div className="progress">
-                    <div style={{ width: `${view.desired.probability}%` }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </Card>
-
-        <Card title="⚠️ Risk Indicator" right={<RiskBadge risk={view.risk} />}>
-          <p className="muted" style={{ margin: 0 }}>
-            Risk combines price volatility, season mismatch and skill-fit. Lower risk is more stable for planning.
-          </p>
-          <div className="grid-3" style={{ marginTop: 12 }}>
-            <div className="kpi">
-              <div className="muted">Season</div>
-              <div className="value">{view.input.season}</div>
-            </div>
-            <div className="kpi">
-              <div className="muted">Soil</div>
-              <div className="value">{view.input.soilType}</div>
-            </div>
-            <div className="kpi">
-              <div className="muted">Budget</div>
-              <div className="value">{formatINR(view.input.budget)}</div>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid" style={{ marginTop: 14 }}>
-        <Card title="📊 Reason (AI Explanation)">
-          {view.bullets.length ? (
-            <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8 }}>
-              {view.bullets.map((b, idx) => (
-                <li key={idx} className="muted">
-                  {b}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted" style={{ margin: 0 }}>
-              No explanation available.
-            </p>
-          )}
-        </Card>
-
-        <Card
-          title="💰 Price Prediction"
+        {/* Main Recommendation */}
+        <Card 
+          title="AI Crop Prediction" 
           right={
-            <span className="pill">
-              <TrendingUp size={16} /> {view.price.crop || '—'}
+            <span className={`pill ${isRag ? 'pill-success' : ''}`}>
+              <Sparkles size={14} /> {isRag ? 'Deep RAG Analysis' : 'AI Analysis'}
             </span>
           }
         >
-          <div className="grid-3">
-            <div className="kpi">
-              <div className="muted">Min price</div>
-              <div className="value">{formatINR(view.price.rangeMin)}</div>
-            </div>
-            <div className="kpi">
-              <div className="muted">Max price</div>
-              <div className="value">{formatINR(view.price.rangeMax)}</div>
-            </div>
-            <div className="kpi">
-              <div className="muted">Range</div>
-              <div className="value" style={{ fontSize: 16 }}>
-                {view.price.rangeLabel || '—'}
-              </div>
+          <div className="kpi" style={{ marginBottom: 10 }}>
+            <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+              Our AI analyzed {view.input.soilType} soil and historical yield trends in <strong>{view.input.districtName}</strong> to suggest these optimal crops:
+            </p>
+            
+            <div style={{ display: 'grid', gap: 12 }}>
+              {view.recommended.map((r, idx) => (
+                <div key={r.crop} className="anim-fade-up" style={{ animationDelay: `${idx * 0.1}s` }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    padding: '14px 18px', 
+                    borderRadius: 16, 
+                    background: idx === 0 ? 'linear-gradient(to right, #f0fdf4, #ffffff)' : '#fff',
+                    border: idx === 0 ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+                    boxShadow: idx === 0 ? '0 4px 12px rgba(34, 197, 94, 0.08)' : 'none'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ 
+                        width: 40, height: 40, borderRadius: 12, display: 'grid', placeItems: 'center',
+                        background: idx === 0 ? 'linear-gradient(135deg, #15803d, #22c55e)' : '#f1f5f9',
+                        color: idx === 0 ? 'white' : '#64748b'
+                      }}>
+                        <Leaf size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: 17, color: '#1e293b' }}>{r.crop}</div>
+                        <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                           Probability {r.probability}% <CircleDot size={4} /> {r.risk} Risk
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ width: 120 }}>
+                      <div className="progress" style={{ height: 6, background: '#f1f5f9' }}>
+                        <div style={{ width: `${r.probability}%`, background: idx === 0 ? '#22c55e' : '#94a3b8' }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <p className="muted" style={{ margin: '10px 0 0 0' }}>
-            Range is estimated from demand vs supply pressure and recent trend movement.
-          </p>
+        </Card>
+
+        {/* Farm & Context Details */}
+        <Card title="Advisory Parameters" right={<RiskBadge risk={view.risk} />}>
+          <div className="grid-3" style={{ marginBottom: 16 }}>
+            <div className="kpi">
+              <div className="muted" style={{ display: 'flex', alignItems: 'center', gap: 4 }}><MapPin size={12}/> Location</div>
+              <div className="value" style={{ fontSize: 15 }}>{view.input.districtName}</div>
+              <div className="hint">{view.input.stateName}</div>
+            </div>
+            <div className="kpi">
+              <div className="muted">Budget</div>
+              <div className="value" style={{ fontSize: 15 }}>{formatINR(view.input.budget)}</div>
+              <div className="hint">{view.input.landSize} Hectares</div>
+            </div>
+            <div className="kpi">
+              <div className="muted">Soil Type</div>
+              <div className="value" style={{ fontSize: 15 }}>{view.input.soilType}</div>
+              <div className="hint">{view.input.irrigationType} System</div>
+            </div>
+          </div>
+          
+          <div style={{ background: '#f8fafc', padding: 12, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+            <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>AI Reasoning</div>
+            <ul style={{ margin: 0, paddingLeft: 18, listStyleType: 'disc' }}>
+              {view.bullets.map((b, i) => (
+                <li key={i} style={{ fontSize: 13, color: '#475569', marginBottom: 6 }}>{b}</li>
+              ))}
+            </ul>
+          </div>
         </Card>
       </div>
 
-      <div style={{ marginTop: 14 }}>
-        <Card title="📈 Market Trend (Past Prices)">
-          <p className="muted" style={{ margin: '0 0 10px 0' }}>
-            Past price trend for the recommended crop (simple view).
+      <div className="grid" style={{ marginTop: 20 }}>
+        {/* Price Prediction Card */}
+        <Card 
+          title="Projected Sales Price" 
+          right={
+            <span className="pill">
+              <BarChart3 size={14} /> {view.price.crop || 'Price Outlook'}
+            </span>
+          }
+        >
+          <div style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', padding: 24, borderRadius: 20, color: 'white', marginBottom: 20 }}>
+            <div className="muted" style={{ color: '#94a3b8', fontSize: 12 }}>PREDICTED MODAL PRICE</div>
+            <div style={{ fontSize: 42, fontWeight: 900, margin: '4px 0', color: '#4ade80' }}>
+              {formatINR(view.price.modalPrice || (view.price.rangeMin + view.price.rangeMax)/2)}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <div>
+                <div style={{ color: '#94a3b8', fontSize: 11 }}>MIN RANGE</div>
+                <div style={{ fontWeight: 700 }}>{formatINR(view.price.rangeMin)}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ color: '#94a3b8', fontSize: 11 }}>MAX RANGE</div>
+                <div style={{ fontWeight: 700 }}>{formatINR(view.price.rangeMax)}</div>
+              </div>
+            </div>
+          </div>
+
+          {view.price.arrivalQuantity && (
+            <div className="grid-3">
+              <div className="kpi">
+                <div className="muted">Weekly Arrivals</div>
+                <div className="value">{view.price.arrivalQuantity}</div>
+                <div className="hint">{view.price.unit || 'Quintals'}</div>
+              </div>
+              <div className="kpi">
+                <div className="muted">Trader Activity</div>
+                <div className="value">{view.price.traderCount}</div>
+                <div className="hint">Active Buyers</div>
+              </div>
+              <div className="kpi">
+                <div className="muted">Market Fee</div>
+                <div className="value">{view.price.marketFeePct}%</div>
+                <div className="hint">Admin Charge</div>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        {/* Chart Card */}
+        <Card 
+          title="Historical Market Trend" 
+          right={
+            <span className="pill">
+              <LineChart size={14} /> Analytics
+            </span>
+          }
+        >
+          <p className="muted" style={{ marginBottom: 15, fontSize: 13 }}>
+            Price trajectory harvested from <strong>{headerMarket}</strong> datasets (last 6 months).
           </p>
-          <TrendChart data={view.trendSeries} />
+          <div style={{ height: 240 }}>
+             <TrendChart data={view.trendSeries} />
+          </div>
         </Card>
       </div>
     </>

@@ -1,21 +1,21 @@
 import { apiClient } from './client.js'
-import { simulateRecommendation } from '../utils/mockEngine.js'
 
-function apiMode() {
-  // Default to static mock until ML/backend integration is ready.
-  return String(import.meta.env.VITE_API_MODE || 'mock').toLowerCase()
-}
-
+/**
+ * Sends farm data to the Python backend for AI-driven crop and price prediction.
+ * Uses Groq (Llama 3) for real-time analysis.
+ */
 export async function getRecommendation(payload) {
-  if (apiMode() !== 'live') return simulateRecommendation(payload)
-
   try {
-    const res = await apiClient.post('/api/recommendation', payload)
-    if (!res?.data) throw new Error('No data found')
+    const res = await apiClient.post('/api/crop-prediction', payload)
+    
+    if (!res?.data) {
+      throw new Error('No specialized recommendation found in AI response.')
+    }
+    
     return res.data
   } catch (err) {
-    const isNetworkish = !err?.response || err?.code === 'ECONNABORTED'
-    if (isNetworkish) return simulateRecommendation(payload)
-    throw err
+    const errMsg = err?.response?.data?.detail || err?.message || 'AI service is currently unavailable.'
+    console.error('AI Prediction Error:', err)
+    throw new Error(errMsg)
   }
 }

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Card } from '../components/Card.jsx'
 import { SpinnerOverlay } from '../components/SpinnerOverlay.jsx'
 import { useAuth } from '../auth/AuthContext.jsx'
-import farmIllustration from '../assets/illustration-farm.svg'
+import farmIllustration from '../assets/farm.jpg'
 
 export function LoginPage() {
   const nav = useNavigate()

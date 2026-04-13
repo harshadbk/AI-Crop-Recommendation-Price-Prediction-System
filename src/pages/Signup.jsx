@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Card } from '../components/Card.jsx'
 import { SpinnerOverlay } from '../components/SpinnerOverlay.jsx'
 import { useAuth } from '../auth/AuthContext.jsx'
-import farmIllustration from '../assets/illustration-farm.svg'
+import farmIllustration from '../assets/farm.jpg'
+import { LOCATIONS, STATES } from '../constants/options.js'
 
 export function SignupPage() {
   const nav = useNavigate()
@@ -14,6 +15,8 @@ export function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [stateName, setStateName] = useState('Maharashtra')
+  const [districtName, setDistrictName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -25,7 +28,7 @@ export function SignupPage() {
 
     setLoading(true)
     try {
-      await signup({ name, email, password })
+      await signup({ name, email, password, stateName, districtName })
       const next = loc.state?.next || '/'
       nav(next, { replace: true })
     } catch (err) {
@@ -70,6 +73,34 @@ export function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
+            </div>
+
+            <div className="grid">
+              <div className="field">
+                <label htmlFor="state">State</label>
+                <input id="state" list="states" value={stateName} onChange={(e) => setStateName(e.target.value)} />
+                <datalist id="states">
+                  {STATES.map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div className="field">
+                <label htmlFor="district">District Name</label>
+                <input
+                  id="district"
+                  list="districts"
+                  placeholder="Type district"
+                  value={districtName}
+                  onChange={(e) => setDistrictName(e.target.value)}
+                />
+                <datalist id="districts">
+                  {LOCATIONS.map((l) => (
+                    <option key={l} value={l} />
+                  ))}
+                </datalist>
+              </div>
             </div>
 
             <div className="grid">

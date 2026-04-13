@@ -7,15 +7,32 @@ export function monthIndexFromName(monthName) {
 
 export function seasonFromMonth(monthName) {
   const i = monthIndexFromName(monthName)
-  // India-friendly rough mapping (adjustable later)
-  if (i >= 5 && i <= 9) return 'Kharif (Monsoon)'
-  if (i >= 10 || i <= 2) return 'Rabi (Winter)'
-  return 'Zaid (Summer)'
+  // India-friendly rough mapping
+  if (i >= 5 && i <= 9) return 'Rainy'
+  if (i >= 10 || i <= 2) return 'Winter'
+  return 'Summer'
 }
 
 export function seasonKeyFromMonth(monthName) {
   const label = seasonFromMonth(monthName)
-  if (label.toLowerCase().includes('kharif')) return 'kharif'
-  if (label.toLowerCase().includes('rabi')) return 'rabi'
-  return 'zaid'
+  if (label.toLowerCase().includes('rainy')) return 'rainy'
+  if (label.toLowerCase().includes('winter')) return 'winter'
+  return 'summer'
+}
+
+export function datasetSeasonFromMonth(monthName) {
+  const key = seasonKeyFromMonth(monthName)
+  if (key === 'rainy') return 'Rainy'
+  if (key === 'winter') return 'Winter'
+  return 'Summer'
+}
+
+export function monthNameFromDate(yyyyMmDd) {
+  try {
+    const d = new Date(yyyyMmDd)
+    if (Number.isNaN(d.getTime())) return MONTHS[new Date().getMonth()]
+    return MONTHS[d.getMonth()]
+  } catch {
+    return MONTHS[new Date().getMonth()]
+  }
 }

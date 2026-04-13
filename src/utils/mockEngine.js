@@ -208,17 +208,29 @@ function priceRangeFromTrend(trend) {
 
 export function simulateRecommendation(input) {
   const monthIdx = monthIndexFromName(input.monthName)
-  const season = seasonFromMonth(input.monthName)
+  const seasonLabel = seasonFromMonth(input.monthName)
+  const selectedCrop = input?.commodity || input?.desiredCrop || null
 
   const scored = CROP_DATA.map((row) => scoreCrop({ ...input, monthIdx }, row)).sort((a, b) => b.score - a.score)
   const top = scored.slice(0, 2)
-  const desired = input.desiredCrop ? scored.find((s) => s.crop === input.desiredCrop) : null
+  const desired = selectedCrop ? scored.find((s) => s.crop === selectedCrop) : null
 
   const primaryCrop = top[0]?.crop
   const primaryRow = CROP_DATA.find((c) => c.crop === primaryCrop)
+
+  const trendLocation = [
+    input?.marketName,
+    input?.districtName,
+    input?.stateName,
+    input?.variety,
+    input?.grade,
+  ]
+    .filter(Boolean)
+    .join('|') || input.location || 'Unknown'
+
   const trend = primaryRow
     ? buildTrendSeries({
-        location: input.location || 'Unknown',
+        location: trendLocation,
         crop: primaryRow.crop,
         basePrice: primaryRow.basePrice,
         momentum: primaryRow.momentum,
@@ -228,11 +240,30 @@ export function simulateRecommendation(input) {
 
   const range = trend.length ? priceRangeFromTrend(trend) : { min: 0, max: 0 }
 
+  // Light adjustments using optional market signals (if provided)
+  const arrival = typeof input?.arrivalQuantity === 'number' ? input.arrivalQuantity : null
+  const fee = typeof input?.marketFeePct === 'number' ? input.marketFeePct : null
+  const traders = typeof input?.traderCount === 'number' ? input.traderCount : null
+
+  const arrivalPressure = arrival ? clamp01(arrival / 5000) : 0
+  const feePressure = fee ? clamp01(fee / 6) : 0
+  const traderBoost = traders ? clamp01(traders / 50) : 0
+
+  const adj = 1 - arrivalPressure * 0.06 - feePressure * 0.03 + traderBoost * 0.03
+  const adjustedRange = {
+    min: Math.round(range.min * adj),
+    max: Math.round(range.max * adj),
+  }
+
+  const unit = input?.priceUnit || '₹/quintal'
+
   const bullets = primaryRow
     ? [
-        `Based on season: ${season} suits ${primaryRow.crop}.`,
+        `Based on season: ${seasonLabel} suits ${primaryRow.crop}.`,
         `Based on past farmer cultivation trends: supply was ~${Math.round(primaryRow.pastCultivationShare * 100)}% last year.`,
         `Based on demand in market: demand index is ~${Math.round(primaryRow.demandIndex * 100)}% for ${primaryRow.crop}.`,
+        ...(arrival ? [`Based on mandi arrivals: higher arrivals can reduce price (arrival: ${Math.round(arrival)}).`] : []),
+        ...(traders ? [`Based on trader activity: more buyers can support price (traders: ${Math.round(traders)}).`] : []),
       ]
     : []
 
@@ -240,7 +271,7 @@ export function simulateRecommendation(input) {
 
   return {
     mode: 'mock',
-    input: { ...input, season },
+    input: { ...input, seasonLabel },
     recommendedCrops: top.map((t) => ({ crop: t.crop, probability: Math.round(t.score * 100), risk: t.riskLabel })),
     desiredCropAssessment: desired
       ? { crop: desired.crop, probability: Math.round(desired.score * 100), risk: desired.riskLabel }
@@ -248,12 +279,17 @@ export function simulateRecommendation(input) {
     explanation: { bullets },
     pricePrediction: {
       crop: primaryCrop,
-      rangeMin: range.min,
-      rangeMax: range.max,
-      rangeLabel: `${formatINR(range.min)} – ${formatINR(range.max)} / quintal`,
+      rangeMin: adjustedRange.min,
+      rangeMax: adjustedRange.max,
+      rangeLabel: `${formatINR(adjustedRange.min)} – ${formatINR(adjustedRange.max)} (${unit})`,
+      modalPrice: Math.round((adjustedRange.min + adjustedRange.max) / 2),
+      arrivalQuantity: arrival || Math.round(1000 + seededNoise(`${trendLocation}|arrival`) * 4000),
+      marketFeePct: fee || Math.round((1 + seededNoise(`${trendLocation}|fee`) * 3) * 10) / 10,
+      traderCount: traders || Math.round(10 + seededNoise(`${trendLocation}|traders`) * 40),
+      unit,
+      grade: input?.grade || 'FAQ',
     },
     marketTrend: { crop: primaryCrop, series: trend },
     risk: { level: riskLevel },
   }
 }
-

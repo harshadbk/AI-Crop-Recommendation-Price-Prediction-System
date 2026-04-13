@@ -9,14 +9,26 @@ import farm1 from '../assets/farm.jpg'
 function formatDateTime(iso) {
   try {
     const d = new Date(iso)
-    return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    return d.toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   } catch {
     return iso || '—'
   }
 }
 
-function cropFromResult(result) {
-  return result?.pricePrediction?.crop || result?.recommendedCrops?.[0]?.crop || ''
+function cropFromEntry(entry) {
+  return (
+    entry?.input?.commodity ||
+    entry?.input?.desiredCrop ||
+    entry?.result?.pricePrediction?.crop ||
+    entry?.result?.recommendedCrops?.[0]?.crop ||
+    ''
+  )
 }
 
 export function HistoryPage() {
@@ -34,7 +46,7 @@ export function HistoryPage() {
   const crops = useMemo(() => {
     const set = new Set()
     for (const it of items) {
-      const c = cropFromResult(it?.result)
+      const c = cropFromEntry(it)
       if (c) set.add(c)
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b))
@@ -45,7 +57,7 @@ export function HistoryPage() {
     const to = toDate ? new Date(`${toDate}T23:59:59`) : null
 
     return items.filter((it) => {
-      const matchCrop = crop ? cropFromResult(it?.result) === crop : true
+      const matchCrop = crop ? cropFromEntry(it) === crop : true
       const at = it?.generatedAt ? new Date(it.generatedAt) : null
       const matchFrom = from && at ? at >= from : true
       const matchTo = to && at ? at <= to : true
@@ -64,7 +76,7 @@ export function HistoryPage() {
         <div>
           <h2 style={{ margin: 0 }}>History Dashboard</h2>
           <p className="muted" style={{ margin: '6px 0 0 0' }}>
-            Past crop recommendations saved on this device.
+            Past predictions saved on this device.
           </p>
         </div>
         <div className="page-head-actions">
@@ -139,10 +151,18 @@ export function HistoryPage() {
             <div className="history-list">
               {filtered.map((it) => {
                 const rec = it?.result?.recommendedCrops?.[0] || null
-                const cropName = cropFromResult(it?.result) || rec?.crop || '—'
+                const cropName = cropFromEntry(it) || rec?.crop || '—'
                 const risk = it?.result?.risk?.level || rec?.risk || 'Medium'
                 const price = it?.result?.pricePrediction
                 const trend = it?.result?.marketTrend?.series || []
+
+                const mandi = it?.input?.marketName || '—'
+                const place = [
+                  it?.input?.districtName,
+                  it?.input?.stateName,
+                ]
+                  .filter(Boolean)
+                  .join(', ')
 
                 return (
                   <div key={it.id} className="history-row">
@@ -161,8 +181,9 @@ export function HistoryPage() {
                           ) : null}
                         </div>
                         <div className="muted" style={{ marginTop: 4 }}>
-                          {it?.input?.location ? <strong>{it.input.location}</strong> : '—'} • {it?.input?.season || '—'} •{' '}
-                          {formatDateTime(it?.generatedAt)}
+                          <strong>{mandi}</strong>
+                          {place ? ` • ${place}` : ''}
+                          {it?.input?.season ? ` • ${it.input.season}` : ''} • {formatDateTime(it?.generatedAt)}
                         </div>
                         {price?.rangeLabel ? (
                           <div className="muted" style={{ marginTop: 4 }}>
@@ -198,3 +219,4 @@ export function HistoryPage() {
     </>
   )
 }
+

@@ -81,7 +81,7 @@ export function ChatPage() {
     setText('')
 
     try {
-      const res = await sendChatMessage({ message: trimmed })
+      const res = await sendChatMessage({ message: trimmed, history: items })
       setItems((prev) => [
         ...prev,
         { id: makeId('a'), role: 'assistant', text: res?.reply || 'Sorry, I could not generate a reply.', ts: new Date().toISOString() },
