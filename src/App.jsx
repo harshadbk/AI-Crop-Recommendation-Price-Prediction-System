@@ -10,6 +10,7 @@ import { ResultPage } from './pages/Result.jsx'
 import { SignupPage } from './pages/Signup.jsx'
 import { PredictionPage } from './pages/Prediction.jsx'
 import { MarketResultPage } from './pages/MarketResult.jsx'
+import { AnalyticsPage } from './pages/Analytics.jsx'
 
 export function App() {
   return (
@@ -19,6 +20,7 @@ export function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/chat" element={<ChatPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />

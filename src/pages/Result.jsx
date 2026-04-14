@@ -156,7 +156,7 @@ export function ResultPage() {
             <div className="kpi">
               <div className="muted">Budget</div>
               <div className="value" style={{ fontSize: 15 }}>{formatINR(view.input.budget)}</div>
-              <div className="hint">{view.input.landSize} Hectares</div>
+              <div className="hint">{view.input.landSize} Acres</div>
             </div>
             <div className="kpi">
               <div className="muted">Soil Type</div>

@@ -26,7 +26,9 @@ export const STATES = [
   'Gujarat',
   'Punjab',
   'Haryana',
-  'Bihar'
+  'Bihar',
+  'Telangana',
+  'Andhra Pradesh'
 ]
 
 export const DISTRICTS_BY_STATE = {
@@ -54,6 +56,12 @@ export const DISTRICTS_BY_STATE = {
   'Gujarat': [
     'Ahmedabad', 'Surat', 'Rajkot', 'Vadodara', 'Junagadh', 'Mehsana', 'Amreli', 'Bhavnagar', 
     'Anand', 'Banaskantha', 'Patan'
+  ],
+  'Telangana': [
+    'Hyderabad', 'Warangal', 'Nizamabad', 'Khammam', 'Karimnagar', 'Mahabubnagar'
+  ],
+  'Andhra Pradesh': [
+    'Vijayawada', 'Visakhapatnam', 'Guntur', 'Nellore', 'Kurnool', 'Kakinada'
   ],
 }
 

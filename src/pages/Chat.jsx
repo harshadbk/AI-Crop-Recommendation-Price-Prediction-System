@@ -108,7 +108,7 @@ export function ChatPage() {
         <div>
           <h2 style={{ margin: 0 }}>AI Chatbot</h2>
           <p className="muted" style={{ margin: '6px 0 0 0' }}>
-            Ask farming questions. Answers use static logic until LLM integration.
+            Get expert agricultural advice powered by real-time dataset analysis.
           </p>
         </div>
         <div className="page-head-actions">
@@ -122,13 +122,13 @@ export function ChatPage() {
       </div>
 
       <div className="grid" style={{ marginTop: 14 }}>
-        <Card title="Quick Questions" right={<span className="pill"><img src={seasonIcon} alt="" width="18" height="18" /> Your season</span>}>
+        <Card title="Quick Suggestions" right={<span className="pill"><img src={seasonIcon} alt="" width="18" height="18" /> Active Season</span>}>
           <div className="quick">
             {[
-              'Which crop is best this season?',
-              'How to increase yield?',
-              'How to reduce risk?',
-              'What is the expected price range?',
+              'Which fertilizers for Onion?',
+              'How to optimize yield?',
+              'Explain crop rotation benefits',
+              'Market price trend for Wheat',
             ].map((q) => (
               <button key={q} type="button" className="chip" onClick={() => send(q)}>
                 {q}
@@ -136,23 +136,19 @@ export function ChatPage() {
             ))}
           </div>
 
-          <div className="muted" style={{ marginTop: 12 }}>
-            Tip: generate a recommendation from <Link className="link" to="/">Home</Link> to get more tailored answers.
-          </div>
-
           <div className="chat-illustration" aria-hidden="true">
             <img src={illustration} alt="" />
           </div>
         </Card>
 
-        <Card title="Chat">
+        <Card title="Advisory Chat">
           <div className="chat-shell">
             <div className="chat-list" ref={listRef}>
               {!items.length ? (
                 <div className="chat-empty">
-                  <div className="muted">No messages yet.</div>
+                  <div className="muted">Welcome to Farmer Advisory Chat.</div>
                   <div className="muted" style={{ marginTop: 6 }}>
-                    Ask something like: “Which crop is best this season?”
+                    Ask about crops, fertilizers, pesticides, or market trends.
                   </div>
                 </div>
               ) : (
@@ -160,6 +156,7 @@ export function ChatPage() {
                   <div key={m.id} className={`msg ${m.role === 'user' ? 'msg-user' : 'msg-ai'}`}>
                     <div className="bubble">
                       {String(m.text)
+                        .replace(/[{}|[\]]/g, '') // Strips brackets if they leak into visibility
                         .split('\n')
                         .map((line, idx) => (
                           <div key={idx}>{line}</div>

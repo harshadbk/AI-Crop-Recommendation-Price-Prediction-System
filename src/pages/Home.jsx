@@ -16,6 +16,8 @@ import {
   WATER_SOURCES,
   IRRIGATION_TYPES,
   MONTHS,
+  STATES,
+  DISTRICTS_BY_STATE,
 } from '../constants/options.js'
 import { datasetSeasonFromMonth, seasonFromMonth, seasonKeyFromMonth } from '../utils/season.js'
 import { getRecommendation } from '../api/recommendation.js'
@@ -30,6 +32,8 @@ export function HomePage() {
   const { user } = useAuth()
 
   // Crop Suggestion Inputs
+  const [stateName, setStateName] = useState(user?.stateName || 'Maharashtra')
+  const [districtName, setDistrictName] = useState(user?.districtName || 'Pune')
   const [soilType, setSoilType] = useState('Loamy')
   const [waterSource, setWaterSource] = useState('Rainfed')
   const [irrigationType, setIrrigationType] = useState('Flood')
@@ -38,6 +42,8 @@ export function HomePage() {
   const [targetedCrop, setTargetedCrop] = useState('')
   const [priceDate, setPriceDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [seasonManual, setSeasonManual] = useState(datasetSeasonFromMonth(nowMonthName()))
+
+  const districts = useMemo(() => DISTRICTS_BY_STATE[stateName] || [], [stateName])
 
   const monthName = nowMonthName()
   const seasonLabel = useMemo(() => seasonFromMonth(monthName), [monthName])
@@ -51,9 +57,7 @@ export function HomePage() {
     e.preventDefault()
     setError('')
 
-    const stateName = user?.stateName || 'Maharashtra'
-    const districtName = user?.districtName || 'Unknown'
-
+    if (!districtName || districtName === 'Determining...') return setError('Please select a district.')
     if (!budget || Number(budget) <= 0) return setError('Please enter a valid investment budget.')
     if (!landSize || Number(landSize) <= 0) return setError('Please enter your land size.')
 
@@ -123,8 +127,29 @@ export function HomePage() {
         <Card title="Enter Your Farm Details">
           <form onSubmit={onSubmit} className="grid">
             <div className="field" style={{ gridColumn: '1 / -1' }}>
-              <div className="muted" style={{ fontWeight: 900 }}>Soil & Season</div>
-              <div className="hint">State: {user?.stateName || 'Maharashtra'}, District: {user?.districtName || 'Determining...'}</div>
+              <div className="muted" style={{ fontWeight: 900 }}>Location & Timing</div>
+            </div>
+
+            <div className="field">
+              <label htmlFor="state">State</label>
+              <select id="state" value={stateName} onChange={(e) => {
+                setStateName(e.target.value)
+                setDistrictName('')
+              }}>
+                {STATES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label htmlFor="district">District</label>
+              <select id="district" value={districtName} onChange={(e) => setDistrictName(e.target.value)}>
+                <option value="">Select District</option>
+                {districts.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
             </div>
 
             <div className="field">
@@ -150,6 +175,10 @@ export function HomePage() {
               </select>
             </div>
 
+            <div className="field" style={{ gridColumn: '1 / -1', marginTop: 12 }}>
+              <div className="muted" style={{ fontWeight: 900 }}>Soil & Resources</div>
+            </div>
+
             <div className="field">
               <label htmlFor="soil">Soil Type</label>
               <select id="soil" value={soilType} onChange={(e) => setSoilType(e.target.value)}>
@@ -157,10 +186,6 @@ export function HomePage() {
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
-            </div>
-
-            <div className="field" style={{ gridColumn: '1 / -1', marginTop: 12 }}>
-              <div className="muted" style={{ fontWeight: 900 }}>Water & Resources</div>
             </div>
 
             <div className="field">
@@ -193,7 +218,7 @@ export function HomePage() {
             </div>
 
             <div className="field">
-              <label htmlFor="land">Land Size (Hectares)</label>
+              <label htmlFor="land">Land Size (Acres)</label>
               <input
                 id="land"
                 type="number"
