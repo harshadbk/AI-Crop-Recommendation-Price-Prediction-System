@@ -1,5 +1,5 @@
 import React from 'react'
-import { Leaf, LogIn, LogOut, MessageCircle, History, UserPlus, TrendingUp, Map } from 'lucide-react'
+import { Leaf, LogIn, LogOut, MessageCircle, History, UserPlus, TrendingUp, Map, Home, Sprout } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { Footer } from './Footer.jsx'
@@ -30,8 +30,19 @@ export function Layout({ children }) {
 
           <nav className="nav-links" aria-label="Primary">
             <Link className={`nav-link ${location.pathname === '/' ? 'active' : ''}`} to="/">
-              Home
+              <span className="nav-ic" aria-hidden="true">
+                <Home size={16} />
+              </span>
+              {isLoggedIn ? 'My Farm' : 'Home'}
             </Link>
+            {isLoggedIn ? (
+              <Link className={`nav-link ${location.pathname === '/advisory' ? 'active' : ''}`} to="/advisory">
+                <span className="nav-ic" aria-hidden="true">
+                  <Sprout size={16} />
+                </span>
+                Crop Advisory
+              </Link>
+            ) : null}
             <Link className={`nav-link ${location.pathname === '/chat' ? 'active' : ''}`} to="/chat">
               <span className="nav-ic" aria-hidden="true">
                 <MessageCircle size={16} />
@@ -60,7 +71,11 @@ export function Layout({ children }) {
 
           <div className="top-actions">
             <div className="pill" title="Current page">
-              {location.pathname === '/result'
+              {location.pathname === '/' && isLoggedIn
+                ? 'My Farm'
+                : location.pathname === '/profile'
+                ? 'Farm Profile'
+                : location.pathname === '/result'
                 ? 'Result Dashboard'
                 : location.pathname === '/login'
                   ? 'Login'
@@ -79,12 +94,12 @@ export function Layout({ children }) {
 
             {isLoggedIn ? (
               <>
-                <div className="pill" title={user.email}>
+                <Link className="pill" to="/profile" title={`${user.email} - edit farm profile`}>
                   <span className="avatar" aria-hidden="true">
                     {(user.name || 'U').slice(0, 1).toUpperCase()}
                   </span>
                   <strong>{user.name}</strong>
-                </div>
+                </Link>
                 <button type="button" className="btn btn-ghost nav-btn" onClick={onLogout}>
                   <LogOut size={16} /> Logout
                 </button>

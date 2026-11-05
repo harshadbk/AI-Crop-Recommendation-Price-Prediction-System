@@ -623,8 +623,10 @@ select:focus {
   border-radius: 14px;
   border: 1px solid rgba(217, 234, 223, 0.9);
   background: rgba(255, 255, 255, 0.85);
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 1.55;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .msg-user .bubble {

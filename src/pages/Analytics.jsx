@@ -1,19 +1,41 @@
-import React, { useMemo, useState } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
-import { Map, Layers, Database, Search, TrendingUp } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { Map, Layers, Search, TrendingUp } from 'lucide-react'
 import { Card } from '../components/Card.jsx'
 import { SpinnerOverlay } from '../components/SpinnerOverlay.jsx'
 import { fetchCropHeatMap } from '../api/prediction.js'
 import { STATES, DISTRICTS_BY_STATE } from '../constants/options.js'
+import { DISTRICT_ALIASES, getMandiOptions } from '../api/mandi.js'
+import { useAuth } from '../auth/AuthContext.jsx'
 
 export function AnalyticsPage() {
-  const [stateName, setStateName] = useState('Maharashtra')
-  const [districtName, setDistrictName] = useState('')
+  const { user } = useAuth()
+  // Starts on the farmer's own district; districts come from the live mandi list.
+  const [stateName, setStateName] = useState(user?.stateName || 'Maharashtra')
+  const [districtName, setDistrictName] = useState(DISTRICT_ALIASES[user?.districtName] || user?.districtName || '')
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState([])
+  const [source, setSource] = useState('')
   const [error, setError] = useState('')
+  const [liveDistricts, setLiveDistricts] = useState(null)
 
-  const districts = useMemo(() => DISTRICTS_BY_STATE[stateName] || [], [stateName])
+  useEffect(() => {
+    let active = true
+    setLiveDistricts(null)
+    getMandiOptions(stateName)
+      .then((o) => { if (active && o?.live) setLiveDistricts(o.districts) })
+      .catch(() => {})
+    return () => { active = false }
+  }, [stateName])
+
+  const districts = useMemo(() => {
+    const list = liveDistricts || DISTRICTS_BY_STATE[stateName] || []
+    return districtName && !list.includes(districtName) ? [districtName, ...list] : list
+  }, [liveDistricts, stateName, districtName])
+
+  useEffect(() => {
+    if (user?.districtName) handleSearch()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSearch(e) {
     if (e) e.preventDefault()
@@ -24,6 +46,7 @@ export function AnalyticsPage() {
     try {
       const resp = await fetchCropHeatMap({ state: stateName, district: districtName, market: '', commodity: '' })
       setData(resp.data || [])
+      setSource(resp.source || 'Project dataset')
     } catch (err) {
       setError('Failed to fetch analytics data.')
     } finally {
@@ -79,8 +102,11 @@ export function AnalyticsPage() {
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.color }}></div>
                   {entry.dataKey}
                 </div>
-                <div style={{ fontSize: 13, marginTop: 4, color: '#f1f5f9' }}>{origData.production_label || `${entry.value} score`}</div>
-                {origData.analysis_text && <div style={{ fontSize: 11, marginTop: 4, color: '#cbd5e1', fontStyle: 'italic', lineHeight: 1.4 }}>"{origData.analysis_text}"</div>}
+                <div style={{ fontSize: 13, marginTop: 4, color: '#f1f5f9' }}>
+                  {origData.production_label || `${entry.value} price records`}
+                  {origData.avgPrice ? ` · avg ₹${origData.avgPrice.toLocaleString('en-IN')}/q` : ''}
+                </div>
+                {origData.analysis_text && <div style={{ fontSize: 11, marginTop: 4, color: '#cbd5e1', fontStyle: 'italic', lineHeight: 1.4 }}>{origData.analysis_text}</div>}
               </div>
             )
           })}
@@ -92,14 +118,14 @@ export function AnalyticsPage() {
 
   return (
     <div className="anim-fade-up">
-      {loading && <SpinnerOverlay label="Aggregating dataset records..." />}
+      {loading && <SpinnerOverlay label="Fetching live mandi data..." />}
       
       <section className="hero" style={{ padding: '20px 0' }}>
         <div>
           <span className="badge">Crop Distribution Analytics</span>
           <h2>Regional Heat Map.</h2>
           <p className="sub">
-            Visualize APMC-level crop intensity derived from market arrivals and local production records.
+            What every mandi (APMC) in a district is trading right now - from live Agmarknet prices.
           </p>
         </div>
       </section>
@@ -128,6 +154,7 @@ export function AnalyticsPage() {
             </button>
           </form>
           {error && <div className="error" style={{ marginTop: 12 }}>{error}</div>}
+          {source && !error ? <p className="hint" style={{ marginBottom: 0 }}>Source: {source}</p> : null}
         </Card>
       </div>
 

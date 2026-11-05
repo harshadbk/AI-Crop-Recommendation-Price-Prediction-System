@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Card } from '../components/Card.jsx'
 import { RiskBadge } from '../components/RiskBadge.jsx'
 import { TrendChart } from '../components/TrendChart.jsx'
-import { clearHistory, readHistory, toISODateString } from '../utils/historyStore.js'
+import { clearHistory, fetchHistory, readHistory, toISODateString } from '../utils/historyStore.js'
 import farm1 from '../assets/farm.jpg'
 
 function formatDateTime(iso) {
@@ -34,9 +34,19 @@ function cropFromEntry(entry) {
 export function HistoryPage() {
   const [version, setVersion] = useState(0)
   const [items, setItems] = useState(() => readHistory())
+  const [source, setSource] = useState('local')
 
   useEffect(() => {
-    setItems(readHistory())
+    let active = true
+    // Logged in: load from MongoDB (all devices). Guest/offline: this browser.
+    fetchHistory().then((res) => {
+      if (!active) return
+      setItems(res.items)
+      setSource(res.source)
+    })
+    return () => {
+      active = false
+    }
   }, [version])
 
   const [crop, setCrop] = useState('')
@@ -58,15 +68,16 @@ export function HistoryPage() {
 
     return items.filter((it) => {
       const matchCrop = crop ? cropFromEntry(it) === crop : true
-      const at = it?.generatedAt ? new Date(it.generatedAt) : null
+      const stamp = it?.generatedAt || it?.createdAt
+      const at = stamp ? new Date(stamp) : null
       const matchFrom = from && at ? at >= from : true
       const matchTo = to && at ? at <= to : true
       return matchCrop && matchFrom && matchTo
     })
   }, [items, crop, fromDate, toDate])
 
-  function onClear() {
-    clearHistory()
+  async function onClear() {
+    await clearHistory()
     setVersion((v) => v + 1)
   }
 
@@ -76,7 +87,7 @@ export function HistoryPage() {
         <div>
           <h2 style={{ margin: 0 }}>History Dashboard</h2>
           <p className="muted" style={{ margin: '6px 0 0 0' }}>
-            Past predictions saved on this device.
+            {source === 'server' ? 'Past predictions saved to your account.' : 'Past predictions saved on this device.'}
           </p>
         </div>
         <div className="page-head-actions">
@@ -219,4 +230,3 @@ export function HistoryPage() {
     </>
   )
 }
-

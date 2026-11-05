@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card } from '../components/Card.jsx'
 import { SpinnerOverlay } from '../components/SpinnerOverlay.jsx'
-import { sendChatMessage } from '../api/chat.js'
+import { clearChatHistory, loadChatHistory, sendChatMessage } from '../api/chat.js'
+import { useAuth } from '../auth/AuthContext.jsx'
 import illustration from '../assets/farm3.jpg'
 import iconKharif from '../assets/icon-kharif.svg'
 import iconRabi from '../assets/icon-rabi.svg'
@@ -30,6 +31,15 @@ function makeId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`
 }
 
+function formatAssistantReply(value) {
+  return String(value || '')
+    .replace(/\*\*(.*?)\*\*/gs, '$1')
+    .replace(/__(.*?)__/gs, '$1')
+    .replace(/\*\*/g, '')
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+    .replace(/^\s*\*\s+/gm, '- ')
+}
+
 function lastSeasonKey() {
   try {
     const raw = sessionStorage.getItem('cropAi:lastResult')
@@ -52,6 +62,19 @@ export function ChatPage() {
   const [suggested, setSuggested] = useState([])
 
   const listRef = useRef(null)
+  const { isLoggedIn } = useAuth()
+
+  // Logged in: restore the conversation saved in MongoDB (works across devices).
+  useEffect(() => {
+    if (!isLoggedIn) return undefined
+    let active = true
+    loadChatHistory().then((saved) => {
+      if (active && saved.length) setItems(saved)
+    })
+    return () => {
+      active = false
+    }
+  }, [isLoggedIn])
 
   const seasonIcon = useMemo(() => {
     const key = lastSeasonKey()
@@ -98,6 +121,7 @@ export function ChatPage() {
     setItems([])
     setSuggested([])
     writeChat([])
+    if (isLoggedIn) clearChatHistory()
   }
 
   return (
@@ -155,12 +179,7 @@ export function ChatPage() {
                 items.map((m) => (
                   <div key={m.id} className={`msg ${m.role === 'user' ? 'msg-user' : 'msg-ai'}`}>
                     <div className="bubble">
-                      {String(m.text)
-                        .replace(/[{}|[\]]/g, '') // Strips brackets if they leak into visibility
-                        .split('\n')
-                        .map((line, idx) => (
-                          <div key={idx}>{line}</div>
-                        ))}
+                      {m.role === 'user' ? String(m.text) : formatAssistantReply(m.text)}
                     </div>
                   </div>
                 ))
@@ -202,4 +221,3 @@ export function ChatPage() {
     </>
   )
 }
-

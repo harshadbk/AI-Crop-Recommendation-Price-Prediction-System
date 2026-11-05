@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, MapPin, ShoppingBag, Layers, Info, Calendar } from 'lucide-react'
+import { TrendingUp, ShoppingBag, Layers, Info, Calendar } from 'lucide-react'
 import heroImg from '../assets/farm.jpg'
 import farmIllustration from '../assets/illustration-farm.svg'
 import iconKharif from '../assets/icon-kharif.svg'
@@ -16,8 +16,9 @@ import {
   DISTRICTS_BY_STATE,
   MARKETS_BY_DISTRICT,
 } from '../constants/options.js'
-import { datasetSeasonFromMonth, seasonFromMonth, seasonKeyFromMonth } from '../utils/season.js'
+import { seasonFromMonth, seasonKeyFromMonth } from '../utils/season.js'
 import { fetchMarketPrices } from '../api/prediction.js'
+import { DISTRICT_ALIASES, getMandiOptions } from '../api/mandi.js'
 import { appendHistory } from '../utils/historyStore.js'
 
 function nowMonthName() {
@@ -29,20 +30,49 @@ export function PredictionPage() {
   const { user } = useAuth()
 
   // Primary inputs
+  // Pre-filled from the farmer's profile: their district, its first mandi, and their first crop.
   const [stateName, setStateName] = useState(user?.stateName || 'Uttar Pradesh')
   const [districtName, setDistrictName] = useState(user?.districtName || 'Etah')
-  const [marketName, setMarketName] = useState('Awagarh APMC')
-  const [commodity, setCommodity] = useState('Green Chilli')
+  const [marketName, setMarketName] = useState(
+    () => (MARKETS_BY_DISTRICT[user?.districtName] || [])[0] || (user?.districtName ? `${user.districtName} APMC` : 'Awagarh APMC'),
+  )
+  const [commodity, setCommodity] = useState(user?.mainCrops?.[0] || 'Green Chilli')
   const [variety, setVariety] = useState('Other')
   const [priceDate, setPriceDate] = useState(() => new Date().toISOString().slice(0, 10))
 
-  const districts = useMemo(() => DISTRICTS_BY_STATE[stateName] || [], [stateName])
-  const markets = useMemo(() => MARKETS_BY_DISTRICT[districtName] || [], [districtName])
+  // Live dropdowns from the Mandi Prices API (districts, mandis, commodities); fixed lists only as a fallback.
+  const [opts, setOpts] = useState(null)
+  useEffect(() => {
+    let active = true
+    setOpts(null)
+    getMandiOptions(stateName)
+      .then((data) => { if (active && data?.live) setOpts(data) })
+      .catch(() => {})
+    return () => { active = false }
+  }, [stateName])
+
+  const liveDistrict = DISTRICT_ALIASES[districtName] || districtName
+  const withValue = (list, value) => (value && value !== 'Other' && !list.includes(value) ? [value, ...list] : list)
+  const states = useMemo(() => [...new Set([...(opts?.states || []), ...STATES])], [opts])
+  const districts = useMemo(
+    () => withValue(opts?.districts || DISTRICTS_BY_STATE[stateName] || [], districtName),
+    [opts, stateName, districtName],
+  )
+  const liveMarkets = opts?.markets_by_district?.[liveDistrict] || opts?.markets_by_district?.[districtName]
+  const markets = useMemo(() => {
+    const list = liveMarkets || MARKETS_BY_DISTRICT[districtName] || (districtName ? [`${districtName} APMC`] : [])
+    return withValue(list, marketName)
+  }, [liveMarkets, districtName, marketName])
+  const crops = useMemo(() => withValue(opts?.commodities || CROPS, commodity), [opts, commodity])
+
+  // When live mandis arrive, pick a real mandi of this district instead of a guessed name.
+  useEffect(() => {
+    if (liveMarkets?.length && !liveMarkets.includes(marketName)) setMarketName(liveMarkets[0])
+  }, [liveMarkets]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const monthName = nowMonthName()
   const seasonLabel = useMemo(() => seasonFromMonth(monthName), [monthName])
   const seasonKey = useMemo(() => seasonKeyFromMonth(monthName), [monthName])
-  const datasetSeason = datasetSeasonFromMonth(monthName)
   const seasonIcon = seasonKey === 'rainy' ? iconKharif : seasonKey === 'winter' ? iconRabi : iconZaid
 
   const [loading, setLoading] = useState(false)
@@ -95,11 +125,15 @@ export function PredictionPage() {
                 `Last updated on ${latest?.arrival_date || 'Today'}`
             ]
         },
-        marketTrend: { series: analysis?.trend_series || [] }, 
+ 
+        marketTrend: { series: analysis?.trend_series || [], note: analysis?.trend_note },
+        liveModel: response.live_model || null,
+        source: response.source,
         risk: { level: 'Low' }
       }
 
       const packed = { 
+        kind: 'market',
         input: { 
           ...payload, 
           marketName: response.normalized_input?.market || payload.market, 
@@ -126,10 +160,10 @@ export function PredictionPage() {
 
       <section className="hero">
         <div className="anim-fade-up">
-          <span className="badge">Dataset Explorer</span>
+          <span className="badge">{opts ? 'Live Mandi Prices' : 'Mandi Prices'}</span>
           <h2>Market Price Prediction.</h2>
           <p className="sub">
-            Select your Mandi and Commodity. We'll analyze price, arrivals, and trader activity from the latest datasets.
+            Select your Mandi and Commodity. We use today&apos;s live Agmarknet prices from every reporting mandi, their daily history and an ensemble forecast model.
           </p>
           <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
             <span className="pill">
@@ -160,7 +194,7 @@ export function PredictionPage() {
                 setDistrictName('')
                 setMarketName('')
               }}>
-                {STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                {states.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
@@ -206,7 +240,7 @@ export function PredictionPage() {
               {marketName === 'Other' && (
                   <input 
                     style={{ marginTop: 8 }} 
-                    placeholder="Enter Mandi Name" 
+                    placeholder="Enter Mandi Name"
                     onChange={(e) => setMarketName(e.target.value)}
                   />
               )}
@@ -217,7 +251,7 @@ export function PredictionPage() {
               <div style={{ position: 'relative' }}>
                 <select id="commodity" value={commodity} onChange={(e) => setCommodity(e.target.value)} style={{ paddingLeft: 38 }}>
                   <option value="">Select crop</option>
-                  {CROPS.map((c) => (
+                  {crops.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>

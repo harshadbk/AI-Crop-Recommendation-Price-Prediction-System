@@ -1,5 +1,5 @@
 import React from 'react'
-import { Leaf, PhoneCall, ShieldCheck } from 'lucide-react'
+import { Leaf, PhoneCall } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export function Footer() {
@@ -32,9 +32,6 @@ export function Footer() {
 
         <div className="footer-meta">
           <div className="footer-pill">
-            <ShieldCheck size={16} /> Demo mode (static data)
-          </div>
-          <div className="footer-pill">
             <PhoneCall size={16} /> Support: +91-00000-00000
           </div>
           <div className="footer-copy">© {year} Crop AI</div>
@@ -43,4 +40,3 @@ export function Footer() {
     </footer>
   )
 }
-

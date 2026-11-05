@@ -1,8 +1,7 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { 
   MoveLeft, 
-  TrendingUp, 
   ShieldCheck, 
   BarChart3, 
   MapPin, 
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react'
 import { Card } from '../components/Card.jsx'
 import { TrendChart } from '../components/TrendChart.jsx'
+import { LiveMarketCard } from '../components/LiveMarketCard.jsx'
 
 function readSession() {
   try {
@@ -43,7 +43,7 @@ export function MarketResultPage() {
       <Card title="No Market Data">
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
           <AlertCircle size={48} style={{ color: '#94a3b8', marginBottom: 16 }} />
-          <p className="muted">We couldn't find details for this market. Try a different region.</p>
+          <p className="muted">We could not find details for this market. Try a different region.</p>
           <button className="btn btn-primary" onClick={() => nav('/market-prediction')} style={{ marginTop: 20 }}>
             Back to Search
           </button>
@@ -156,10 +156,16 @@ export function MarketResultPage() {
         </Card>
       </div>
 
+      {packed?.result?.liveModel ? (
+        <div style={{ marginTop: 24 }}>
+          <LiveMarketCard live={packed.result.liveModel} />
+        </div>
+      ) : null}
+
       <div style={{ marginTop: 24 }}>
-          <Card title="Regional Comparison">
+          <Card title={packed?.result?.liveModel ? 'Price Trend (live)' : 'Price Trend'}>
               <p className="muted" style={{ marginBottom: 20 }}>
-                  This chart shows historically how {data.commodity} prices fluctuate in {input.state} during this month.
+                  {packed?.result?.marketTrend?.note || `How ${data.commodity} prices moved in ${input.state}.`}
               </p>
               <div style={{ height: 300 }}>
                   <TrendChart data={packed?.result?.marketTrend?.series || []} />

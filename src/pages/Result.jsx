@@ -3,11 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { 
   Leaf, 
   MoveLeft, 
-  ShieldCheck, 
   MapPin, 
   CircleDot,
   AlertCircle,
-  TrendingUp,
   Sparkles,
   BarChart3,
   LineChart
@@ -73,7 +71,6 @@ export function ResultPage() {
 
   const isRag = view.result.mode === 'live_rag'
   const headerMarket = view.input.marketName || view.input.location || 'Your Region'
-  const districtDisplay = view.input.districtName || view.input.location?.split(',')[0] || 'Local'
 
   return (
     <>
@@ -93,10 +90,10 @@ export function ResultPage() {
       <div className="grid">
         {/* Main Recommendation */}
         <Card 
-          title="AI Crop Prediction" 
+          title="AI Crop Prediction"
           right={
             <span className={`pill ${isRag ? 'pill-success' : ''}`}>
-              <Sparkles size={14} /> {isRag ? 'Deep RAG Analysis' : 'AI Analysis'}
+              <Sparkles size={14} /> {isRag ? 'Deep RAG Analysis' : view.result.mode === 'ml_live_weather' ? 'ML + Live Weather' : 'AI Analysis'}
             </span>
           }
         >
@@ -131,6 +128,16 @@ export function ResultPage() {
                         <div className="muted" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                            Probability {r.probability}% <CircleDot size={4} /> {r.risk} Risk
                         </div>
+                        {(r.predicted_yield_q_ha || r.expected_farm_revenue) ? (
+                          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                            {r.predicted_yield_q_ha ? `Yield ~${r.predicted_yield_q_ha} q/ha` : ''}
+                            {r.expected_farm_revenue ? ` · Est. revenue ${formatINR(r.expected_farm_revenue)}` : ''}
+                            {r.price?.source ? ` · Price: ${r.price.source}` : ''}
+                          </div>
+                        ) : null}
+                        {r.cautions?.length ? (
+                          <div style={{ fontSize: 11, color: '#b45309', marginTop: 2 }}>⚠ {r.cautions.join('; ')}</div>
+                        ) : null}
                       </div>
                     </div>
                     <div style={{ width: 120 }}>
@@ -176,10 +183,71 @@ export function ResultPage() {
         </Card>
       </div>
 
+      {view.result.soilModel ? (
+        <div style={{ marginTop: 20 }}>
+          <Card title="Soil & Climate Model (N-P-K, pH, weather)" right={<span className="pill">Random Forest · Crop Recommendation dataset</span>}>
+            <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+              Best matches for your soil and current climate:{' '}
+              <strong>{view.result.soilModel.crops.slice(0, 3).map((c) => `${c.crop} (${c.probability}%)`).join(', ')}</strong>
+            </p>
+            <div className="grid-3">
+              {Object.entries(view.result.soilModel.inputs).map(([k, v]) => (
+                <div key={k} className="kpi">
+                  <div className="muted" style={{ textTransform: 'uppercase', fontSize: 11 }}>{k}</div>
+                  <div className="value" style={{ fontSize: 15 }}>{v}</div>
+                  <div className="hint">{view.result.soilModel.input_sources[k]}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {view.result.weather ? (
+        <div style={{ marginTop: 20 }}>
+          <Card
+            title={`Live Weather · ${view.result.weather.location?.district || view.input.districtName}`}
+            right={<span className="pill">OpenWeather · {new Date(view.result.weather.fetched_at).toLocaleTimeString()}</span>}
+          >
+            <div className="grid-3" style={{ marginBottom: 12 }}>
+              <div className="kpi">
+                <div className="muted">Now</div>
+                <div className="value" style={{ fontSize: 15 }}>{view.result.weather.current.temp}°C</div>
+                <div className="hint">{view.result.weather.current.condition} · {view.result.weather.current.humidity}% RH</div>
+              </div>
+              <div className="kpi">
+                <div className="muted">Next {view.result.weather.outlook.days} days</div>
+                <div className="value" style={{ fontSize: 15 }}>{view.result.weather.outlook.temp_min}–{view.result.weather.outlook.temp_max}°C</div>
+                <div className="hint">{view.result.weather.outlook.total_rain_mm} mm rain</div>
+              </div>
+              <div className="kpi">
+                <div className="muted">Good spray days</div>
+                <div className="value" style={{ fontSize: 15 }}>{view.result.weather.good_spray_days?.join(', ') || '—'}</div>
+                <div className="hint">Low wind, low rain chance</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+              {view.result.weather.daily?.map((d) => (
+                <div key={d.date} style={{ minWidth: 96, padding: 10, borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}>
+                  <div style={{ fontWeight: 700 }}>{d.label}</div>
+                  <div>{d.temp_min}–{d.temp_max}°C</div>
+                  <div className="muted">{d.rain_mm} mm · {d.rain_chance_pct}%</div>
+                </div>
+              ))}
+            </div>
+            {view.result.weather.alerts?.length ? (
+              <ul style={{ margin: '12px 0 0', paddingLeft: 18, color: '#b45309', fontSize: 13 }}>
+                {view.result.weather.alerts.map((a, i) => <li key={i}>{a}</li>)}
+              </ul>
+            ) : null}
+          </Card>
+        </div>
+      ) : null}
+
       <div className="grid" style={{ marginTop: 20 }}>
         {/* Price Prediction Card */}
         <Card 
-          title="Projected Sales Price" 
+          title="Projected Sales Price"
           right={
             <span className="pill">
               <BarChart3 size={14} /> {view.price.crop || 'Price Outlook'}
@@ -226,7 +294,7 @@ export function ResultPage() {
 
         {/* Chart Card */}
         <Card 
-          title="Historical Market Trend" 
+          title={view.result.marketTrend?.live ? 'Live Market Trend' : 'Historical Market Trend'}
           right={
             <span className="pill">
               <LineChart size={14} /> Analytics
@@ -234,7 +302,7 @@ export function ResultPage() {
           }
         >
           <p className="muted" style={{ marginBottom: 15, fontSize: 13 }}>
-            Price trajectory harvested from <strong>{headerMarket}</strong> datasets (last 6 months).
+            {view.result.marketTrend?.note || <>Price trend for <strong>{headerMarket}</strong>.</>}
           </p>
           <div style={{ height: 240 }}>
              <TrendChart data={view.trendSeries} />

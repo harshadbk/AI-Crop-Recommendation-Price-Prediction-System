@@ -1,124 +1,144 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { supabase } from './supabaseClient'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { apiClient, errorMessage, getToken, setToken } from '../api/client.js'
+import { syncLocalHistory } from '../utils/historyStore.js'
 
 const AuthContext = createContext(null)
-const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
+function toUser(profile, authUser) {
+  return {
+    id: profile?.id || authUser?.id,
+    email: profile?.email || authUser?.email,
+    name: profile?.full_name || authUser?.user_metadata?.full_name || 'User',
+    stateName: profile?.state_name || '',
+    districtName: profile?.district_name || '',
+    talukaName: profile?.taluka_name || '',
+    soilType: profile?.soil_type || '',
+    farmSizeAcres: profile?.farm_size_acres ?? null,
+    mainCrops: profile?.main_crops || [],
+    preferredLanguage: profile?.preferred_language || '',
+    waterSource: profile?.water_source || '',
+    irrigationType: profile?.irrigation_type || '',
+    budget: profile?.budget ?? null,
+    soilN: profile?.soil_n ?? null,
+    soilP: profile?.soil_p ?? null,
+    soilK: profile?.soil_k ?? null,
+    soilPh: profile?.soil_ph ?? null,
+    profileComplete: Boolean(profile?.profile_complete),
+  }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // We still use supabase client for session management on the frontend
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        fetchProfile(session.user)
-      } else {
-        setLoading(false)
-      }
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        fetchProfile(session.user)
-      } else {
-        setUser(null)
-        setLoading(false)
-      }
-    })
-
-    return () => subscription.unsubscribe()
+  const startSession = useCallback((result) => {
+    setToken(result?.session?.access_token || '')
+    const next = toUser(result?.profile, result?.user)
+    setUser(next)
+    // Upload results saved in this browser before login (ignored if DB is offline).
+    syncLocalHistory().catch(() => {})
+    return next
   }, [])
 
-  async function fetchProfile(authUser) {
-    try {
-      // In this setup, we still fetch profile from Supabase directly for speed,
-      // but we could also create a backend endpoint for this.
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single()
-
-      if (error) throw error
-
-      setUser({
-        id: authUser.id,
-        email: authUser.email,
-        name: data.full_name,
-        stateName: data.state_name,
-        districtName: data.district_name,
-      })
-    } catch (err) {
-      setUser({
-        id: authUser.id,
-        email: authUser.email,
-        name: authUser.user_metadata?.full_name || 'User',
-      })
-    } finally {
+  // Restore the session on page load by validating the saved token.
+  useEffect(() => {
+    let active = true
+    if (!getToken()) {
       setLoading(false)
+      return undefined
     }
-  }
-
-  async function signup({ name, email, password, stateName, districtName }) {
-    // Calling our NEW Python Backend Signup Route
-    const response = await fetch(`${BACKEND_URL}/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        email,
-        password,
-        state_name: stateName,
-        district_name: districtName
+    apiClient
+      .get('/auth/me')
+      .then(({ data }) => {
+        if (active) setUser(toUser(data.profile, data.user))
       })
-    })
+      .catch(() => {
+        if (active) setUser(null)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
-    const result = await response.json()
-    if (!response.ok) throw new Error(result.detail || 'Signup failed')
+  // Token rejected by the backend (expired / password changed elsewhere).
+  useEffect(() => {
+    const onLogout = () => setUser(null)
+    window.addEventListener('cropAi:logout', onLogout)
+    return () => window.removeEventListener('cropAi:logout', onLogout)
+  }, [])
 
-    // After backend signup, we sign in on the frontend to establish session
-    await login({ email, password })
-    return result.user
-  }
-
-  async function login({ email, password }) {
-    // Calling our NEW Python Backend Login Route
-    const response = await fetch(`${BACKEND_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    })
-
-    const result = await response.json()
-    if (!response.ok) throw new Error(result.detail || 'Login failed')
-
-    // Sign in locally with supabase to persist session in browser
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-    if (authError) throw authError
-
-    return result.user
-  }
-
-  async function logout() {
-    await supabase.auth.signOut()
-    setUser(null)
-  }
-
-  const value = useMemo(() => ({ 
-    user, 
-    isLoggedIn: Boolean(user), 
-    loading,
-    login, 
-    signup, 
-    logout 
-  }), [user, loading])
-
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
+  const signup = useCallback(
+    async ({ name, email, password, stateName, districtName, ...extra }) => {
+      try {
+        const { data } = await apiClient.post('/auth/signup', {
+          name,
+          email,
+          password,
+          state_name: stateName || '',
+          district_name: districtName || '',
+          taluka_name: extra.talukaName,
+          soil_type: extra.soilType,
+          farm_size_acres: extra.farmSizeAcres,
+          main_crops: extra.mainCrops,
+          preferred_language: extra.preferredLanguage,
+          water_source: extra.waterSource,
+          irrigation_type: extra.irrigationType,
+          budget: extra.budget,
+          soil_n: extra.soilN,
+          soil_p: extra.soilP,
+          soil_k: extra.soilK,
+          soil_ph: extra.soilPh,
+        })
+        return startSession(data)
+      } catch (err) {
+        throw new Error(errorMessage(err, 'Signup failed'))
+      }
+    },
+    [startSession],
   )
+
+  const login = useCallback(
+    async ({ email, password }) => {
+      try {
+        const { data } = await apiClient.post('/auth/login', { email, password })
+        return startSession(data)
+      } catch (err) {
+        throw new Error(errorMessage(err, 'Login failed'))
+      }
+    },
+    [startSession],
+  )
+
+  const logout = useCallback(async () => {
+    try {
+      await apiClient.post('/auth/logout')
+    } catch {
+      // token is dropped locally either way
+    }
+    setToken('')
+    setUser(null)
+  }, [])
+
+  const updateProfile = useCallback(async (changes) => {
+    try {
+      const { data } = await apiClient.put('/auth/profile', changes)
+      const next = toUser(data.profile)
+      setUser(next)
+      return next
+    } catch (err) {
+      throw new Error(errorMessage(err, 'Profile update failed'))
+    }
+  }, [])
+
+  const value = useMemo(
+    () => ({ user, isLoggedIn: Boolean(user), loading, login, signup, logout, updateProfile }),
+    [user, loading, login, signup, logout, updateProfile],
+  )
+
+  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>
 }
 
 export function useAuth() {

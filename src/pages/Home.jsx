@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, Sprout, Droplets, Wallet, Maximize2, History as HistoryIcon } from 'lucide-react'
+import { Sprout, Wallet, Maximize2 } from 'lucide-react'
 import heroImg from '../assets/farm.jpg'
 import farmIllustration from '../assets/illustration-farm.svg'
 import iconKharif from '../assets/icon-kharif.svg'
@@ -34,16 +34,24 @@ export function HomePage() {
   // Crop Suggestion Inputs
   const [stateName, setStateName] = useState(user?.stateName || 'Maharashtra')
   const [districtName, setDistrictName] = useState(user?.districtName || 'Pune')
-  const [soilType, setSoilType] = useState('Loamy')
-  const [waterSource, setWaterSource] = useState('Rainfed')
-  const [irrigationType, setIrrigationType] = useState('Flood')
-  const [budget, setBudget] = useState('')
-  const [landSize, setLandSize] = useState('')
+  // Everything is pre-filled from the farmer's saved profile - they only change what is different this time.
+  const [soilType, setSoilType] = useState(user?.soilType || 'Loamy')
+  const [waterSource, setWaterSource] = useState(user?.waterSource || 'Rainfed')
+  const [irrigationType, setIrrigationType] = useState(user?.irrigationType || 'Flood')
+  const [budget, setBudget] = useState(user?.budget ?? '')
+  const [landSize, setLandSize] = useState(user?.farmSizeAcres ?? '')
   const [targetedCrop, setTargetedCrop] = useState('')
+  const [soilN, setSoilN] = useState(user?.soilN ?? '')
+  const [soilP, setSoilP] = useState(user?.soilP ?? '')
+  const [soilK, setSoilK] = useState(user?.soilK ?? '')
+  const [soilPh, setSoilPh] = useState(user?.soilPh ?? '')
   const [priceDate, setPriceDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [seasonManual, setSeasonManual] = useState(datasetSeasonFromMonth(nowMonthName()))
 
-  const districts = useMemo(() => DISTRICTS_BY_STATE[stateName] || [], [stateName])
+  const districts = useMemo(() => {
+    const list = DISTRICTS_BY_STATE[stateName] || []
+    return districtName && !list.includes(districtName) ? [districtName, ...list] : list
+  }, [stateName, districtName])
 
   const monthName = nowMonthName()
   const seasonLabel = useMemo(() => seasonFromMonth(monthName), [monthName])
@@ -74,6 +82,11 @@ export function HomePage() {
       landSize: Number(landSize),
       targetedCrop: targetedCrop || 'None',
       priceDate,
+      // Soil Health Card values (optional). Empty -> typical values for the soil type.
+      soilN: soilN === '' ? null : Number(soilN),
+      soilP: soilP === '' ? null : Number(soilP),
+      soilK: soilK === '' ? null : Number(soilK),
+      soilPh: soilPh === '' ? null : Number(soilPh),
       
       // Backward compatibility / dataset alignment
       commodity: 'Suggestion Request',
@@ -85,7 +98,7 @@ export function HomePage() {
     setLoading(true)
     try {
       const result = await getRecommendation(payload)
-      const packed = { input: payload, result, generatedAt: new Date().toISOString() }
+      const packed = { kind: 'crop', input: payload, result, generatedAt: new Date().toISOString() }
       sessionStorage.setItem('cropAi:lastResult', JSON.stringify(packed))
       appendHistory(packed)
       navigate('/result', { state: packed })
@@ -124,7 +137,7 @@ export function HomePage() {
       </section>
 
       <div className="anim-fade-up anim-delay-3" id="suggestion-form">
-        <Card title="Enter Your Farm Details">
+        <Card title={user ? 'Your Farm Details (pre-filled from your profile)' : 'Enter Your Farm Details'}>
           <form onSubmit={onSubmit} className="grid">
             <div className="field" style={{ gridColumn: '1 / -1' }}>
               <div className="muted" style={{ fontWeight: 900 }}>Location & Timing</div>
@@ -227,6 +240,26 @@ export function HomePage() {
                 value={landSize}
                 onChange={(e) => setLandSize(e.target.value)}
               />
+            </div>
+
+            <div className="field" style={{ gridColumn: '1 / -1', marginTop: 12 }}>
+              <div className="muted" style={{ fontWeight: 900 }}>Soil Test (from Soil Health Card)</div>
+            </div>
+            <div className="field">
+              <label htmlFor="soilN">Nitrogen N (kg/ha)</label>
+              <input id="soilN" type="number" min="0" placeholder="e.g. 80" value={soilN} onChange={(e) => setSoilN(e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="soilP">Phosphorus P (kg/ha)</label>
+              <input id="soilP" type="number" min="0" placeholder="e.g. 40" value={soilP} onChange={(e) => setSoilP(e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="soilK">Potassium K (kg/ha)</label>
+              <input id="soilK" type="number" min="0" placeholder="e.g. 45" value={soilK} onChange={(e) => setSoilK(e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="soilPh">Soil pH</label>
+              <input id="soilPh" type="number" min="3" max="10" step="0.1" placeholder="e.g. 7.0" value={soilPh} onChange={(e) => setSoilPh(e.target.value)} />
             </div>
 
             <div className="field">

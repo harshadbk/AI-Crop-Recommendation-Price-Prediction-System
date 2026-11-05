@@ -1,6 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { AuthProvider } from './auth/AuthContext.jsx'
+import { AuthProvider, useAuth } from './auth/AuthContext.jsx'
 import { Layout } from './components/Layout.jsx'
 import { HomePage } from './pages/Home.jsx'
 import { ChatPage } from './pages/Chat.jsx'
@@ -11,6 +11,14 @@ import { SignupPage } from './pages/Signup.jsx'
 import { PredictionPage } from './pages/Prediction.jsx'
 import { MarketResultPage } from './pages/MarketResult.jsx'
 import { AnalyticsPage } from './pages/Analytics.jsx'
+import { DashboardPage } from './pages/Dashboard.jsx'
+import { ProfilePage } from './pages/Profile.jsx'
+
+// Logged-in farmers land on their personalised "My Farm" dashboard; guests see the advisory form.
+function Landing() {
+  const { isLoggedIn } = useAuth()
+  return isLoggedIn ? <DashboardPage /> : <HomePage />
+}
 
 export function App() {
   return (
@@ -18,7 +26,9 @@ export function App() {
       <AuthProvider>
         <Layout>
           <Routes>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/" element={<Landing />} />
+            <Route path="/advisory" element={<HomePage />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/history" element={<HistoryPage />} />

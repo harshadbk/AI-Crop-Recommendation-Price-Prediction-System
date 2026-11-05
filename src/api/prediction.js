@@ -6,7 +6,7 @@ import { apiClient as API } from './client';
  */
 export const fetchMarketPrices = async (params) => {
     try {
-        const response = await API.post('/api/market-prediction', params);
+        const response = await API.post('/api/market-prediction', params, { timeout: 30000 });
         return response.data;
     } catch (error) {
         console.error("Error fetching market prices:", error);

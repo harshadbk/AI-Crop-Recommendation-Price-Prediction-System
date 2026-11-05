@@ -1,10 +1,4 @@
 import { apiClient } from './client.js'
-import { mockChatRespond } from '../utils/chatMock.js'
-
-function mode() {
-  // Default to mock until LLM integration is ready.
-  return String(import.meta.env.VITE_CHAT_MODE || 'mock').toLowerCase()
-}
 
 export async function sendChatMessage({ message, history = [] }) {
   try {
@@ -17,3 +11,20 @@ export async function sendChatMessage({ message, history = [] }) {
 }
 
 
+
+export async function loadChatHistory() {
+  try {
+    const res = await apiClient.get('/api/chat/history')
+    return Array.isArray(res?.data?.items) ? res.data.items : []
+  } catch {
+    return []
+  }
+}
+
+export async function clearChatHistory() {
+  try {
+    await apiClient.delete('/api/chat/history')
+  } catch {
+    // browser copy is already cleared
+  }
+}

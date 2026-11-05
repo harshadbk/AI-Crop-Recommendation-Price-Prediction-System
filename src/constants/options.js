@@ -42,8 +42,10 @@ export const DISTRICTS_BY_STATE = {
     'Mandsaur', 'Neemuch', 'Vidisha', 'Sagar', 'Khargone', 'Hoshangabad', 'Sehore'
   ],
   'Maharashtra': [
-    'Pune', 'Nashik', 'Nagpur', 'Aurangabad', 'Solapur', 'Kolhapur', 'Ahmednagar', 'Jalgaon', 
-    'Sangli', 'Satara', 'Amravati', 'Latur', 'Akola', 'Beed', 'Dhule', 'Nanded'
+    'Ahmednagar', 'Akola', 'Amravati', 'Aurangabad', 'Beed', 'Bhandara', 'Buldhana', 'Chandrapur', 'Dhule',
+    'Gadchiroli', 'Gondia', 'Hingoli', 'Jalgaon', 'Jalna', 'Kolhapur', 'Latur', 'Mumbai', 'Nagpur', 'Nanded',
+    'Nandurbar', 'Nashik', 'Osmanabad', 'Palghar', 'Parbhani', 'Pune', 'Raigad', 'Ratnagiri', 'Sangli',
+    'Satara', 'Sindhudurg', 'Solapur', 'Thane', 'Wardha', 'Washim', 'Yavatmal'
   ],
   'Rajasthan': [
     'Jaipur', 'Alwar', 'Bikaner', 'Kota', 'Jodhpur', 'Udaipur', 'Barmer', 'Sikar', 'Bharatpur', 
@@ -68,8 +70,12 @@ export const DISTRICTS_BY_STATE = {
 export const MARKETS_BY_DISTRICT = {
   'Etah': ['Awagarh APMC', 'Aliganj APMC', 'Kasganj APMC', 'Ganjdundwara APMC'],
   'Agra': ['Achnera APMC', 'Agra APMC', 'Fatehabad APMC', 'Jagnair APMC', 'Samsabad APMC'],
+  'Ahmednagar': ['Ahmednagar APMC', 'Rahuri APMC', 'Sangamner APMC', 'Kopargaon APMC', 'Shrirampur APMC'],
+  'Solapur': ['Solapur APMC', 'Pandharpur APMC', 'Barshi APMC', 'Akluj APMC'],
+  'Jalgaon': ['Jalgaon APMC', 'Chopda APMC', 'Raver APMC', 'Amalner APMC'],
+  'Kolhapur': ['Kolhapur APMC', 'Jaysingpur APMC', 'Vadgaon APMC'],
   'Pune': ['Pune APMC', 'Manchar APMC', 'Junner APMC', 'Shirur APMC', 'Khed APMC', 'Daund APMC'],
-  'Nashik': ['Nashik APMC', 'Lasalgaon APMC', 'Pimpalgaon APMC', 'Yeola APMC', 'Sinnar APMC'],
+  'Nashik': ['Nashik APMC', 'Lasalgaon APMC', 'Pimpalgaon APMC', 'Yeola APMC', 'Sinnar APMC', 'Manmad APMC', 'Niphad APMC', 'Satana APMC', 'Malegaon APMC'],
   'Indore': ['Indore APMC', 'Mhow APMC', 'Sanwer APMC', 'Depalpur APMC'],
   'Nagpur': ['Nagpur APMC', 'Kalmeshwar APMC', 'Saoner APMC', 'Katol APMC'],
   'Jaipur': ['Jaipur APMC', 'Chomu APMC', 'Shahpura APMC', 'Lalsot APMC'],
@@ -97,7 +103,16 @@ export const CROPS = [
   'Potato',
   'Onion',
   'Green Chilli',
+  'Grapes',
+  'Pomegranate',
+  'Banana',
+  'Jowar',
+  'Bajra',
+  'Moong',
+  'Urad',
 ]
+
+export const LANGUAGES = ['English', 'Marathi', 'Hindi']
 
 export const EXPERIENCE_LEVELS = ['Beginner', 'Intermediate', 'Expert']
 
